@@ -56,7 +56,15 @@ The application reads data from local JSON files for fund information and user t
 
 ## Project Structure
 
-.├── data/│   ├── fund&categorysample.json  # Master data for fund categories and details│   └── transactionhistorysample.json # Stores user transactions (used for PV, TH, and investment recording)├── index.js                     # Main application file (Express server and webhook logic)├── package.json                 # Project dependencies and scripts├── package-lock.json            # Exact versions of dependencies└── README.md                    # This file
+.
+├── data/
+│   ├── fund&categorysample.json  # Master data for fund categories and details
+│   └── transactionhistorysample.json # Stores user transactions (used for PV, TH, and investment recording)
+├── index.js                     # Main application file (Express server and webhook logic)
+├── package.json                 # Project dependencies and scripts
+├── package-lock.json            # Exact versions of dependencies
+└── README.md                    # This file
+
 ## Setup and Installation
 
 1.  **Clone the repository (if applicable) or download the code.**
@@ -125,7 +133,6 @@ The webhook `index.js` maps Dialogflow intent names to specific handler function
 * **`Capture Investment Amount`**: Triggers `captureInvestmentAmountIntent`. Requires input context `awaiting-investment-amount` and uses `@sys.number` or direct query matching.
 * **`Select Transaction History Period`**: Triggers `handleTHPeriodSelectionIntent`. Requires input context `awaiting-th-period-selection` and handles custom date entities (`@sys.date`, `@sys.date-period`) and period callbacks.
 * **`Transaction History Invest Decision`**: Triggers `handleTHInvestDecisionIntent`. Requires input context `awaiting-th-invest-decision` and handles "yes/no" callbacks.
-* **`Go To Main Menu`**: Triggers `goToMainMenuIntent` (handles `action_main_menu` callback).
 
 Ensure that contexts, parameters, and entity usage in Dialogflow intents match what the webhook functions expect.
 
@@ -149,7 +156,6 @@ Ensure that contexts, parameters, and entity usage in Dialogflow intents match w
 * **`getContactNumberFromSession`**: Helper to retrieve contact number from session context.
 * **`recordTransaction`**: Saves investment data to `transactionhistorysample.json`.
 * **`createTelegramPayload`**: Utility to format messages for Telegram.
-* **`goToMainMenuIntent`**: Clears contexts and returns to the welcome message.
 * **`defaultFallbackIntent`**: Handles unrecognized input.
 
 ## Context Management
