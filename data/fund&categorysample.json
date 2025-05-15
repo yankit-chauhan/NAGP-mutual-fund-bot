@@ -1,0 +1,52 @@
+[
+  {
+    "category": "Equity",
+    "funds": [
+      {
+        "fund_id": "MF001",
+        "fund_name": "Alpha Growth Fund",
+        "ratio": "30%(Debt)-30%(Large Cap Equity)-20%(Mid Cap Equity)-20%(Small Cap Equity)",
+        "cagr": "15.2%",
+        "details_link": "https://www.example-data.com/alpha-growth"
+      },
+      {
+        "fund_id": "MF004",
+        "fund_name": "Delta Tax Saver Fund",
+        "ratio": "80%(Equity:Tax Saver)-10%(Debt)-10%(Cash)",
+        "cagr": "12.5%",
+        "details_link": "https://www.example-data.com/delta-tax"
+      }
+    ]
+  },
+  {
+    "category": "Debt",
+    "funds": [
+      {
+        "fund_id": "MF002",
+        "fund_name": "Beta Income Fund",
+        "ratio": "90%(Debt:Corporate Bonds)-10%(Debt:Govt Sec)",
+        "cagr": "7.8%",
+        "details_link": "https://www.example-data.com/beta-income"
+      },
+      {
+        "fund_id": "MF005",
+        "fund_name": "Omega Liquid Fund",
+        "ratio": "100%(Debt:Liquid & Overnight)",
+        "cagr": "5.5%",
+        "details_link": "https://www.example-data.com/omega-liquid"
+      }
+    ]
+  },
+  {
+    "category": "Hybrid",
+    "funds": [
+      {
+        "fund_id": "MF003",
+        "fund_name": "Gamma Balanced Fund",
+        "ratio": "50%(Equity)-40%(Debt)-10%(Gold)",
+        "cagr": "10.3%",
+        "details_link": "https://www.example-data.com/gamma-balanced"
+      }
+    ]
+  }
+]
