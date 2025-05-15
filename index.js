@@ -390,15 +390,15 @@ app.post('/webhook', (req, res) => {
     console.log('----------------------------------------------------------------------------------');
   };
 
-  const handleTHPeriodSelectionIntent = agentInternal => {
+  const handleTHPeriodSelectionIntent = agent => {
     console.log('----------------------------------------------------------------------------------');
-    console.log('TH_PERIOD_SELECT Intent - Triggered:', agentInternal.intent);
-    const thPeriodContext = agentInternal.context.get(AWAITING_TH_PERIOD_CONTEXT);
+    console.log('TH_PERIOD_SELECT Intent - Triggered:', agent.intent);
+    const thPeriodContext = agent.context.get(AWAITING_TH_PERIOD_CONTEXT);
     const contactNumber = thPeriodContext?.parameters?.contact_number;
 
-    const customDateSingleParam = agentInternal.parameters.date_single;
-    const customDateRangeParam = agentInternal.parameters.date_range;
-    const periodSelectionCallback = agentInternal.query;
+    const customDateSingleParam = agent.parameters.date_single;
+    const customDateRangeParam = agent.parameters.date_range;
+    const periodSelectionCallback = agent.query;
 
     console.log('TH_PERIOD_SELECT Intent - Contact:', contactNumber);
     console.log('TH_PERIOD_SELECT Intent - Custom Date Param:', customDateSingleParam);
@@ -407,8 +407,8 @@ app.post('/webhook', (req, res) => {
 
 
     if (!contactNumber) {
-        agentInternal.add("Sorry, your session seems to have expired. Please start over by selecting Transaction History again.");
-        if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+        agent.add("Sorry, your session seems to have expired. Please start over by selecting Transaction History again.");
+        if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
         return;
     }
 
@@ -423,8 +423,8 @@ app.post('/webhook', (req, res) => {
         }
     } catch (e) {
         console.error("Error reading transaction file for TH:", e);
-        agentInternal.add("Sorry, an error occurred while fetching transaction history.");
-        if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+        agent.add("Sorry, an error occurred while fetching transaction history.");
+        if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
         return;
     }
 
@@ -453,18 +453,18 @@ app.post('/webhook', (req, res) => {
                 throw new Error("Invalid date(s) in date range parameter.");
             }
             if (isFuture(startDate) || isFuture(endDate)) {
-                 agentInternal.add("Future dates are not allowed for transaction history. Please provide a past date or range.");
-                 promptForTHPeriod(agentInternal, contactNumber); return;
+                 agent.add("Future dates are not allowed for transaction history. Please provide a past date or range.");
+                 promptForTHPeriod(agent, contactNumber); return;
             }
             if (startDate > endDate) {
-                agentInternal.add("The start date must be before the end date for a date range.");
-                promptForTHPeriod(agentInternal, contactNumber); return;
+                agent.add("The start date must be before the end date for a date range.");
+                promptForTHPeriod(agent, contactNumber); return;
             }
             periodText = `Custom Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}`;
         } catch (e) {
             console.error("Error parsing custom date range:", e);
-            agentInternal.add("The date range provided was not understood. Please try again, e.g., 'transactions from last Monday to Friday'.");
-            promptForTHPeriod(agentInternal, contactNumber); return;
+            agent.add("The date range provided was not understood. Please try again, e.g., 'transactions from last Monday to Friday'.");
+            promptForTHPeriod(agent, contactNumber); return;
         }
     } else if (customDateSingleParam) {
         try {
@@ -477,14 +477,14 @@ app.post('/webhook', (req, res) => {
                  throw new Error("Invalid date in single date parameter.");
             }
             if (isFuture(startDate)) {
-                 agentInternal.add("Future dates are not allowed for transaction history. Please provide a past date.");
-                 promptForTHPeriod(agentInternal, contactNumber); return;
+                 agent.add("Future dates are not allowed for transaction history. Please provide a past date.");
+                 promptForTHPeriod(agent, contactNumber); return;
             }
             periodText = `For Date: ${startDate.toLocaleDateString('en-GB')}`;
         } catch (e) {
             console.error("Error parsing custom single date:", e);
-            agentInternal.add("The date provided was not understood. Please try again, e.g., 'transactions for yesterday'.");
-            promptForTHPeriod(agentInternal, contactNumber); return;
+            agent.add("The date provided was not understood. Please try again, e.g., 'transactions for yesterday'.");
+            promptForTHPeriod(agent, contactNumber); return;
         }
     } else if (periodSelectionCallback === TH_PERIOD_CURRENT_FY_CALLBACK) {
         periodText = "Current Financial Year";
@@ -501,8 +501,8 @@ app.post('/webhook', (req, res) => {
         startDate = new Date(fyStartYear, 3, 1);
         endDate = new Date(fyStartYear + 1, 2, 31, 23, 59, 59, 999);
     } else {
-        agentInternal.add("Invalid period selection. Please choose a valid period or specify a date/range.");
-        promptForTHPeriod(agentInternal, contactNumber);
+        agent.add("Invalid period selection. Please choose a valid period or specify a date/range.");
+        promptForTHPeriod(agent, contactNumber);
         return;
     }
 
@@ -534,20 +534,20 @@ app.post('/webhook', (req, res) => {
         });
         tableString += "```";
         const message = `Latest 3 transactions for ${contactNumber} (${periodText}):\n${tableString}`;
-        agentInternal.add(message);
+        agent.add(message);
     } else {
-        agentInternal.add(`No transactions found for ${contactNumber} for the selected period: ${periodText}.`);
+        agent.add(`No transactions found for ${contactNumber} for the selected period: ${periodText}.`);
     }
 
-    if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+    if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
 
     const investMoreMessage = "Do you want to invest more?";
     const options = [
         [{ text: "Yes", callback_data: TH_INVEST_YES_CALLBACK }],
         [{ text: "No", callback_data: TH_INVEST_NO_CALLBACK }]
     ];
-    agentInternal.add(createTelegramPayload(investMoreMessage, options));
-    agentInternal.context.set({
+    agent.add(createTelegramPayload(investMoreMessage, options));
+    agent.context.set({
         name: AWAITING_TH_INVEST_DECISION_CONTEXT,
         lifespan: 1,
         parameters: { contact_number: contactNumber }
