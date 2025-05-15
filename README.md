@@ -54,16 +54,6 @@ The application reads data from local JSON files for fund information and user t
 * A messaging platform integration with Dialogflow (e.g., Telegram).
 * A way to expose your local webhook to the internet for Dialogflow to reach it (e.g., ngrok during development).
 
-## Project Structure
-
-.
-├── data/
-│   ├── fund&categorysample.json  # Master data for fund categories and details
-│   └── transactionhistorysample.json # Stores user transactions (used for PV, TH, and investment recording)
-├── index.js                     # Main application file (Express server and webhook logic)
-├── package.json                 # Project dependencies and scripts
-├── package-lock.json            # Exact versions of dependencies
-└── README.md                    # This file
 
 ## Setup and Installation
 
