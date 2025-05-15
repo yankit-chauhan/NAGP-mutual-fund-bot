@@ -14,7 +14,7 @@ const AWAITING_CATEGORY_CHOICE_CONTEXT = 'awaiting-category-selection';
 const AWAITING_FUND_CHOICE_CONTEXT = 'awaiting-fund-selection';
 const AWAITING_CONTACT_NUMBER = 'awaiting-contact-number';
 const USER_SESSION_CONTEXT = 'user-session';
-const USER_SESSION_LIFESPAN = 10;
+const USER_SESSION_LIFESPAN = 50;
 const CONTACT_NUMBER_LENGTH = 10;
 const AWAITING_CONTACT_FOR_INVESTMENT_CONTEXT = 'awaiting-contact-for-investment';
 const AWAITING_INVESTMENT_AMOUNT_CONTEXT = 'awaiting-investment-amount';
@@ -114,7 +114,6 @@ app.post('/webhook', (req, res) => {
     console.log('----------------------------------------------------------------------------------');
     console.log('Triggered:', agent.intent);
 
-    console.log('agent.context', JSON.stringify(agent.context));
     const userChoice = agent.query;
     console.log('User Choice:', userChoice);
 
@@ -324,27 +323,6 @@ app.post('/webhook', (req, res) => {
     console.log('----------------------------------------------------------------------------------');
   };
 
-  const goToMainMenuIntent = agent => {
-    console.log('----------------------------------------------------------------------------------');
-    console.log('Triggered:', agent.intent);
-
-    const contextsToClear = [
-      AWAITING_CATEGORY_CHOICE_CONTEXT,
-      AWAITING_FUND_CHOICE_CONTEXT,
-      AWAITING_CONTACT_NUMBER,
-      AWAITING_CONTACT_FOR_INVESTMENT_CONTEXT,
-      AWAITING_INVESTMENT_AMOUNT_CONTEXT
-    ];
-
-    contextsToClear.forEach(contextName => {
-      if (agent.context.get(contextName)) {
-        agent.context.delete(contextName);
-      }
-    });
-    console.log('----------------------------------------------------------------------------------');
-    return defaultWelcomeIntent(agent);
-  }
-
   const invokePortfolioValuationIntent = agent => {
     console.log('----------------------------------------------------------------------------------');
     console.log('Triggered:', agent.intent);
@@ -360,7 +338,6 @@ app.post('/webhook', (req, res) => {
   const showSelectedFundPortfolioIntent = agent => {
     console.log('----------------------------------------------------------------------------------');
     console.log('Triggered:', agent.intent);
-    console.log('agent.context', JSON.stringify(agent.context));
 
     const userChoice = agent.query;
     console.log('User Choice:', userChoice);
@@ -531,6 +508,7 @@ app.post('/webhook', (req, res) => {
   };
 
   const handleTHInvestDecisionIntent = agent => {
+    console.log('----------------------------------------------------------------------------------');
     console.log('TH_INVEST_DECISION Intent - Triggered:', agent.intent);
     const decision = agent.query;
     const decisionContext = agent.context.get(AWAITING_TH_INVEST_DECISION_CONTEXT);
@@ -554,11 +532,13 @@ app.post('/webhook', (req, res) => {
         agent.add(createTelegramPayload(investMoreMessage, options));
         agent.context.set({name: AWAITING_TH_INVEST_DECISION_CONTEXT, lifespan: 1, parameters: {contact_number: contactNumber}});
     }
+    console.log('----------------------------------------------------------------------------------');
   };
 
 
   agent.handleRequest(createIntentMap());
 
+  // HELPER FUNCTIONS
 
   function recordTransaction( transactionData ) {
     try {
@@ -702,11 +682,11 @@ app.post('/webhook', (req, res) => {
     });
   }
 
-
-
   function createIntentMap() {
     let intentMap = new Map();
     intentMap.set('Default Welcome Intent', defaultWelcomeIntent);
+    intentMap.set('Default Fallback Intent', defaultFallbackIntent);
+
     intentMap.set('Explore Funds', exploreFundsIntent);
     intentMap.set('Selected Fund Categories', selectedFundCategoriesIntent);
     intentMap.set('Show Fund Details', showFundDetailsIntent);
@@ -721,10 +701,6 @@ app.post('/webhook', (req, res) => {
     intentMap.set('Invoke Transaction History', invokeTransactionHistoryIntent);
     intentMap.set('Select Transaction History Period', handleTHPeriodSelectionIntent);
     intentMap.set('Transaction History Invest Decision', handleTHInvestDecisionIntent);
-
-    intentMap.set('Go To Main Menu', goToMainMenuIntent);
-
-    intentMap.set('Default Fallback Intent', defaultFallbackIntent);
 
     return intentMap;
   }
