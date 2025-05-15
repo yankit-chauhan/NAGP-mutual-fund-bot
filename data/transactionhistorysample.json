@@ -43,6 +43,24 @@
         "amount": 1000,
         "fund_name": "Delta Tax Saver Fund",
         "fund_id": "MF004"
+      },
+      {
+        "date": "2025-05-15",
+        "amount": 10000,
+        "fund_name": "Alpha Growth Fund",
+        "fund_id": "MF001"
+      },
+      {
+        "date": "2025-05-15",
+        "amount": 3999,
+        "fund_name": "Delta Tax Saver Fund",
+        "fund_id": "MF004"
+      },
+      {
+        "date": "2025-05-15",
+        "amount": 12323,
+        "fund_name": "Beta Income Fund",
+        "fund_id": "MF002"
       }
     ]
   },
