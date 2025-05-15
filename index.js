@@ -391,6 +391,7 @@ app.post('/webhook', (req, res) => {
   };
 
   const handleTHPeriodSelectionIntent = agentInternal => {
+    console.log('----------------------------------------------------------------------------------');
     console.log('TH_PERIOD_SELECT Intent - Triggered:', agentInternal.intent);
     const thPeriodContext = agentInternal.context.get(AWAITING_TH_PERIOD_CONTEXT);
     const contactNumber = thPeriodContext?.parameters?.contact_number;
@@ -551,6 +552,7 @@ app.post('/webhook', (req, res) => {
         lifespan: 1,
         parameters: { contact_number: contactNumber }
     });
+    console.log('----------------------------------------------------------------------------------');
   };
 
   const handleTHInvestDecisionIntent = agent => {
