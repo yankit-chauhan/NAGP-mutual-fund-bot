@@ -390,18 +390,24 @@ app.post('/webhook', (req, res) => {
     console.log('----------------------------------------------------------------------------------');
   };
 
-  const handleTHPeriodSelectionIntent = agent => {
-    console.log('----------------------------------------------------------------------------------');
-    console.log('TH_PERIOD_SELECT Intent - Triggered:', agent.intent);
-    const periodSelection = agent.query;
-    const thPeriodContext = agent.context.get(AWAITING_TH_PERIOD_CONTEXT);
+  const handleTHPeriodSelectionIntent = agentInternal => {
+    console.log('TH_PERIOD_SELECT Intent - Triggered:', agentInternal.intent);
+    const thPeriodContext = agentInternal.context.get(AWAITING_TH_PERIOD_CONTEXT);
     const contactNumber = thPeriodContext?.parameters?.contact_number;
 
-    console.log('TH_PERIOD_SELECT Intent - Period:', periodSelection, "Contact:", contactNumber);
+    const customDateSingleParam = agentInternal.parameters.date_single;
+    const customDateRangeParam = agentInternal.parameters.date_range;
+    const periodSelectionCallback = agentInternal.query;
+
+    console.log('TH_PERIOD_SELECT Intent - Contact:', contactNumber);
+    console.log('TH_PERIOD_SELECT Intent - Custom Date Param:', customDateSingleParam);
+    console.log('TH_PERIOD_SELECT Intent - Custom Date Range Param:', JSON.stringify(customDateRangeParam));
+    console.log('TH_PERIOD_SELECT Intent - Period Callback:', periodSelectionCallback);
+
 
     if (!contactNumber) {
-        agent.add("Sorry, your session seems to have expired. Please start over by selecting Transaction History again.");
-        if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+        agentInternal.add("Sorry, your session seems to have expired. Please start over by selecting Transaction History again.");
+        if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
         return;
     }
 
@@ -411,100 +417,140 @@ app.post('/webhook', (req, res) => {
             const fileData = fs.readFileSync(transactionFilePath, 'utf8');
             if (fileData) {
                 allUserTransactions = JSON.parse(fileData);
-                if (!Array.isArray(allUserTransactions)) {
-                    console.error("Transaction data is not an array. Resetting.");
-                    allUserTransactions = [];
-                }
+                if (!Array.isArray(allUserTransactions)) allUserTransactions = [];
             }
         }
     } catch (e) {
         console.error("Error reading transaction file for TH:", e);
-        agent.add("Sorry, an error occurred while fetching transaction history.");
-        if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+        agentInternal.add("Sorry, an error occurred while fetching transaction history.");
+        if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
         return;
     }
 
     const userRecord = allUserTransactions.find(u => u.mobile === contactNumber);
     let userTransactions = [];
-    if (userRecord && userRecord.transactions && Array.isArray(userRecord.transactions)) {
+    if (userRecord?.transactions?.length) {
         userTransactions = userRecord.transactions;
     }
 
     let transactionsToDisplay = [];
     let periodText = "";
-
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    let fyStartYear;
-    if (currentMonth >= 3) {
-        fyStartYear = currentYear;
-    } else {
-        fyStartYear = currentYear - 1;
-    }
-
     let startDate, endDate;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    if (periodSelection === TH_PERIOD_CURRENT_FY_CALLBACK) {
+
+    if (customDateRangeParam) { 
+        try {
+            startDate = new Date(customDateRangeParam.startDate || customDateRangeParam.date_time || customDateRangeParam.startDateTime);
+            endDate = new Date(customDateRangeParam.endDate || customDateRangeParam.date_time || customDateRangeParam.endDateTime);
+
+            startDate.setHours(0,0,0,0);
+            endDate.setHours(23,59,59,999);
+
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                throw new Error("Invalid date(s) in date range parameter.");
+            }
+            if (isFuture(startDate) || isFuture(endDate)) {
+                 agentInternal.add("Future dates are not allowed for transaction history. Please provide a past date or range.");
+                 promptForTHPeriod(agentInternal, contactNumber); return;
+            }
+            if (startDate > endDate) {
+                agentInternal.add("The start date must be before the end date for a date range.");
+                promptForTHPeriod(agentInternal, contactNumber); return;
+            }
+            periodText = `Custom Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}`;
+        } catch (e) {
+            console.error("Error parsing custom date range:", e);
+            agentInternal.add("The date range provided was not understood. Please try again, e.g., 'transactions from last Monday to Friday'.");
+            promptForTHPeriod(agentInternal, contactNumber); return;
+        }
+    } else if (customDateSingleParam) {
+        try {
+            startDate = new Date(customDateSingleParam);
+            startDate.setHours(0,0,0,0);
+            endDate = new Date(customDateSingleParam);
+            endDate.setHours(23,59,59,999);
+
+            if (isNaN(startDate.getTime())) {
+                 throw new Error("Invalid date in single date parameter.");
+            }
+            if (isFuture(startDate)) {
+                 agentInternal.add("Future dates are not allowed for transaction history. Please provide a past date.");
+                 promptForTHPeriod(agentInternal, contactNumber); return;
+            }
+            periodText = `For Date: ${startDate.toLocaleDateString('en-GB')}`;
+        } catch (e) {
+            console.error("Error parsing custom single date:", e);
+            agentInternal.add("The date provided was not understood. Please try again, e.g., 'transactions for yesterday'.");
+            promptForTHPeriod(agentInternal, contactNumber); return;
+        }
+    } else if (periodSelectionCallback === TH_PERIOD_CURRENT_FY_CALLBACK) {
         periodText = "Current Financial Year";
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        let fyStartYear = (currentMonth >= 3) ? currentYear : currentYear - 1;
         startDate = new Date(fyStartYear, 3, 1);
-        endDate = new Date(fyStartYear + 1, 2, 31);
-    } else if (periodSelection === TH_PERIOD_PREVIOUS_FY_CALLBACK) {
+        endDate = new Date(fyStartYear + 1, 2, 31, 23, 59, 59, 999);
+    } else if (periodSelectionCallback === TH_PERIOD_PREVIOUS_FY_CALLBACK) {
         periodText = "Previous Financial Year";
-        startDate = new Date(fyStartYear - 1, 3, 1);
-        endDate = new Date(fyStartYear, 2, 31);
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        let fyStartYear = (currentMonth >= 3) ? currentYear -1 : currentYear - 2;
+        startDate = new Date(fyStartYear, 3, 1);
+        endDate = new Date(fyStartYear + 1, 2, 31, 23, 59, 59, 999);
     } else {
-        agent.add("Invalid period selection. Please choose a valid period.");
-        promptForTHPeriod(agent, contactNumber);
+        agentInternal.add("Invalid period selection. Please choose a valid period or specify a date/range.");
+        promptForTHPeriod(agentInternal, contactNumber);
         return;
     }
 
-    console.log(`Filtering for ${periodText}: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`Filtering for ${periodText}: Start - ${startDate?.toISOString()}, End - ${endDate?.toISOString()}`);
 
     transactionsToDisplay = userTransactions.filter(txn => {
-        const txnDate = new Date(txn.date);
-        return txnDate >= startDate && txnDate <= endDate;
+        try {
+            const txnDate = new Date(txn.date);
+            txnDate.setHours(0,0,0,0);
+            return txnDate >= startDate && txnDate <= endDate;
+        } catch (e) {
+            console.error("Error parsing transaction date:", txn.date, e);
+            return false;
+        }
     });
 
     transactionsToDisplay.sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const latestThreeTransactions = transactionsToDisplay.slice(0, 3);
 
     if (latestThreeTransactions.length > 0) {
         let tableString = "```\n";
-        tableString += "Date                | Fund Name                    | Amount        |\n";
-        tableString += "----------------------|---------------------------------------|---------------|\n";
-
+        tableString += "Date       | Fund Name          | Amount     |\n";
+        tableString += "-----------|--------------------|------------|\n";
         latestThreeTransactions.forEach(txn => {
-            const dateStr = (txn.date || 'N/A').padEnd(15);
-            const fundStr = (txn.fund_name || 'N/A').substring(0, 18).padEnd(25);
-            const amountStr = `₹${(txn.amount || 0).toLocaleString('en-IN')}`.padStart(15);
-
+            const dateStr = (txn.date || 'N/A').padEnd(10);
+            const fundStr = (txn.fund_name || 'N/A').substring(0, 18).padEnd(18);
+            const amountStr = `₹${(txn.amount || 0).toLocaleString('en-IN')}`.padStart(11);
             tableString += `${dateStr} | ${fundStr} | ${amountStr} |\n`;
         });
         tableString += "```";
-
         const message = `Latest 3 transactions for ${contactNumber} (${periodText}):\n${tableString}`;
-        agent.add(message);
+        agentInternal.add(message);
     } else {
-        agent.add(`No transactions found for ${contactNumber} for the selected period: ${periodText}.`);
+        agentInternal.add(`No transactions found for ${contactNumber} for the selected period: ${periodText}.`);
     }
 
-    if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
+    if (thPeriodContext) agentInternal.context.delete(AWAITING_TH_PERIOD_CONTEXT);
 
     const investMoreMessage = "Do you want to invest more?";
     const options = [
         [{ text: "Yes", callback_data: TH_INVEST_YES_CALLBACK }],
         [{ text: "No", callback_data: TH_INVEST_NO_CALLBACK }]
     ];
-    agent.add(createTelegramPayload(investMoreMessage, options));
-    agent.context.set({
+    agentInternal.add(createTelegramPayload(investMoreMessage, options));
+    agentInternal.context.set({
         name: AWAITING_TH_INVEST_DECISION_CONTEXT,
         lifespan: 1,
         parameters: { contact_number: contactNumber }
     });
-    console.log('----------------------------------------------------------------------------------');
   };
 
   const handleTHInvestDecisionIntent = agent => {
@@ -680,6 +726,12 @@ app.post('/webhook', (req, res) => {
       lifespan: 1,
       parameters: { contact_number: contactNumber }
     });
+  }
+
+  function isFuture(date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Compare against start of today
+    return date > today;
   }
 
   function createIntentMap() {
