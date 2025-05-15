@@ -78,18 +78,18 @@ app.post('/webhook', (req, res) => {
 
     const userChoice = agent.query;
     console.log('User Choice:', userChoice);
-  
+
     if (!userChoice) {
       console.log("No effective user choice to process.");
       agent.add("I'm having trouble understanding your choice. Please try again from the menu.");
       agent.context.delete(AWAITING_CATEGORY_CHOICE_CONTEXT);
       return;
     }
-  
+
     if (userChoice.startsWith(FUND_CATEGORY_CHOICE_PREFIX)) {
       const selectedCategory = userChoice.substring(FUND_CATEGORY_CHOICE_PREFIX.length);
       console.log('Selected Fund Category:', selectedCategory);
-  
+
       const categoryObject = fundData.find(item => item.category === selectedCategory);
       const funds = categoryObject.funds;
 
@@ -113,7 +113,7 @@ app.post('/webhook', (req, res) => {
   const showFundDetailsIntent = agent => {
     console.log('----------------------------------------------------------------------------------');
     console.log('Triggered:', agent.intent);
-    
+
     console.log('agent.context', JSON.stringify(agent.context));
     const userChoice = agent.query;
     console.log('User Choice:', userChoice);
@@ -130,7 +130,7 @@ app.post('/webhook', (req, res) => {
     let selectedFundName = `ID ${selectedFundId}`;
     let fundRatio = "Not available";
     let fundCagr = "Not available";
-    let fundDetailsLink = "https://www.example-data.com/general-info"; // Default link
+    let fundDetailsLink = "https://www.example-data.com/general-info";
     let fundFound = false;
 
     try {
@@ -152,14 +152,14 @@ app.post('/webhook', (req, res) => {
       return;
     }
     console.log('Selected Fund ID:', selectedFundId, "Name:", selectedFundName);
-    
+
     const message = `Selected Fund: ${selectedFundName} (ID: ${selectedFundId})\n\nIt has a ratio of approximately ${fundRatio} with a ${fundCagr}% CAGR.\n\nFor more details: ${fundDetailsLink}`;
     const options = [
       [{ text: "Invest", callback_data: `${INVEST_CHOICE_PREFIX}${selectedFundId}` }],
       [{ text: "Return to Main menu", callback_data: "action_main_menu" }]
     ];
     agent.add(createTelegramPayload(message, options));
-    agent.context.delete(AWAITING_FUND_CHOICE_CONTEXT); 
+    agent.context.delete(AWAITING_FUND_CHOICE_CONTEXT);
     console.log('----------------------------------------------------------------------------------');
   };
 
@@ -187,7 +187,7 @@ app.post('/webhook', (req, res) => {
           displayPortfolioValuation(agent, contactNumber);
         } else if (flowType === "Transaction History") {
           promptForTHPeriod(agent, contactNumber);
-        } else if (flowType === "Invest" || contextParams.fund_id_for_investment) { 
+        } else if (flowType === "Invest" || contextParams.fund_id_for_investment) {
           const fundId = contextParams.fund_id_for_investment;
           const fundName = contextParams.fund_name_for_investment || `Fund ID ${fundId}`;
           if (fundId) {
@@ -222,14 +222,14 @@ app.post('/webhook', (req, res) => {
     console.log('Triggered:', agent.intent);
     const investPayload = agent.parameters.invest_payload || agent.query;
     console.log('INVEST_FLOW - Payload:', investPayload);
-  
+
     if (!investPayload || !investPayload.startsWith(INVEST_CHOICE_PREFIX)) {
       agent.add("Sorry, I couldn't identify the fund for investment. Please try again.");
       return;
     }
     const fundId = investPayload.substring(INVEST_CHOICE_PREFIX.length);
     console.log('INVEST_FLOW - Extracted Fund ID:', fundId);
-  
+
     let fundName = `Fund ID ${fundId}`;
     try {
       for (const categoryEntry of fundData) {
@@ -240,15 +240,14 @@ app.post('/webhook', (req, res) => {
           }
       }
     } catch(e){ console.error("Error finding fund name in handleInvestmentIntent", e)}
-  
-  
+
+
     const contactNumber = getContactNumberFromSession(agent);
     if (contactNumber) {
       console.log('INVEST_FLOW - Contact number found in session:', contactNumber);
       promptForInvestmentAmount(agent, fundId, contactNumber, fundName);
     } else {
       console.log('INVEST_FLOW - Contact number not found. Asking user.');
-      // Set a context to remember we are in investment flow and which fund
       agent.context.set({
         name: AWAITING_CONTACT_FOR_INVESTMENT_CONTEXT,
         lifespan: 1,
@@ -268,42 +267,40 @@ app.post('/webhook', (req, res) => {
     const contextParams = agent.context.get(AWAITING_INVESTMENT_AMOUNT_CONTEXT)?.parameters;
     const fundId = contextParams?.fund_id;
     const contactNumber = contextParams?.contact_number;
-    const fundName = contextParams?.fund_name || `Fund ID ${fundId}`; // Get fundName from context
-  
-    let amountInput = agent.parameters.amount || agent.query; // @sys.number for typed, agent.query for button clicks
+    const fundName = contextParams?.fund_name || `Fund ID ${fundId}`;
+
+    let amountInput = agent.parameters.amount || agent.query;
     console.log('INVEST_AMOUNT - Raw amount input:', amountInput);
-  
+
     if (!fundId || !contactNumber) {
       console.error('INVEST_AMOUNT - Missing fund_id or contact_number in context.');
       agent.add("Sorry, something went wrong with your investment selection. Please try again from the fund details.");
       agent.context.delete(AWAITING_INVESTMENT_AMOUNT_CONTEXT);
       return;
     }
-  
-    let amount = parseFloat(String(amountInput).replace(/[^0-9.]/g, '')); // Clean and parse
-  
+
+    let amount = parseFloat(String(amountInput).replace(/[^0-9.]/g, ''));
+
     let isValid = false;
     let errorMessage = "";
-  
+
     if (isNaN(amount) || amount <= 0) {
       errorMessage = "Please enter a valid positive number for the amount.";
     } else {
-      // Check if amountInput was one of the chip values (which are already < 50000)
-      const chipValues = ["1000", "2000", "5000", "10000"]; // String values from callbacks
+      const chipValues = ["1000", "2000", "5000", "10000"];
       const wasChipClicked = chipValues.includes(String(amountInput));
-  
+
       if (wasChipClicked) {
         isValid = true;
-      } else if (amount < 50000) { // If typed, must be < 50000
+      } else if (amount < 50000) {
         isValid = true;
       } else {
         errorMessage = "If typing an amount, it must be less than ₹50,000. Please enter a valid amount or select an option.";
       }
     }
-  
+
     if (isValid) {
       console.log(`INVEST_AMOUNT - Valid amount: ${amount} for fund: ${fundId}, contact: ${contactNumber}`);
-      // Record transaction
       const transaction = {
         date: new Date().toISOString().split('T')[0],
         contact_number: contactNumber,
@@ -317,14 +314,12 @@ app.post('/webhook', (req, res) => {
         agent.add("Thank you for choosing our services. There was an issue recording your investment, please contact support.");
       }
       agent.context.delete(AWAITING_INVESTMENT_AMOUNT_CONTEXT);
-      // Optionally offer main menu button
       defaultWelcomeIntent(agent);
-  
+
     } else {
       console.log('INVEST_AMOUNT - Invalid amount entered.');
       agent.add(errorMessage);
-      // Re-prompt by calling the helper function again, ensuring context has necessary params
-      promptForInvestmentAmount(agent, fundId, contactNumber, fundName); // This will reset the context
+      promptForInvestmentAmount(agent, fundId, contactNumber, fundName);
     }
     console.log('----------------------------------------------------------------------------------');
   };
@@ -340,7 +335,7 @@ app.post('/webhook', (req, res) => {
       AWAITING_CONTACT_FOR_INVESTMENT_CONTEXT,
       AWAITING_INVESTMENT_AMOUNT_CONTEXT
     ];
-  
+
     contextsToClear.forEach(contextName => {
       if (agent.context.get(contextName)) {
         agent.context.delete(contextName);
@@ -390,7 +385,7 @@ app.post('/webhook', (req, res) => {
 
     const contactNumber = getContactNumberFromSession(agent);
     let userRecord = records.find(user => user.mobile === contactNumber);
-    
+
     let matchingTransactions = [];
 
     if (userRecord) {
@@ -401,7 +396,7 @@ app.post('/webhook', (req, res) => {
       const currDate = new Date().toISOString().split('T')[0];
       agent.add(`Your Portfolio ${selectedFundId} valuation is ${totalAmount} on ${currDate}`);
     }
-    agent.context.delete(AWAITING_PV_FUND_CHOICE_CONTEXT); 
+    agent.context.delete(AWAITING_PV_FUND_CHOICE_CONTEXT);
 
     console.log('----------------------------------------------------------------------------------');
   }
@@ -421,7 +416,7 @@ app.post('/webhook', (req, res) => {
   const handleTHPeriodSelectionIntent = agent => {
     console.log('----------------------------------------------------------------------------------');
     console.log('TH_PERIOD_SELECT Intent - Triggered:', agent.intent);
-    const periodSelection = agent.query; // e.g., "th_period_current_fy"
+    const periodSelection = agent.query;
     const thPeriodContext = agent.context.get(AWAITING_TH_PERIOD_CONTEXT);
     const contactNumber = thPeriodContext?.parameters?.contact_number;
 
@@ -430,7 +425,6 @@ app.post('/webhook', (req, res) => {
     if (!contactNumber) {
         agent.add("Sorry, your session seems to have expired. Please start over by selecting Transaction History again.");
         if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
-        // Optionally, call goToMainMenuIntent(agent); if you want to force main menu
         return;
     }
 
@@ -462,15 +456,14 @@ app.post('/webhook', (req, res) => {
     let transactionsToDisplay = [];
     let periodText = "";
 
-    // Determine Financial Year dates (India: April 1 - March 31)
-    const today = new Date(); // For this example, we know it's May 15, 2025
-    const currentMonth = today.getMonth(); // 0 (Jan) - 11 (Dec)
+    const today = new Date();
+    const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
 
     let fyStartYear;
-    if (currentMonth >= 3) { // April (month 3) or later
+    if (currentMonth >= 3) {
         fyStartYear = currentYear;
-    } else { // Jan, Feb, Mar
+    } else {
         fyStartYear = currentYear - 1;
     }
 
@@ -478,51 +471,44 @@ app.post('/webhook', (req, res) => {
 
     if (periodSelection === TH_PERIOD_CURRENT_FY_CALLBACK) {
         periodText = "Current Financial Year";
-        startDate = new Date(fyStartYear, 3, 1); // April 1st of current FY start year
-        endDate = new Date(fyStartYear + 1, 2, 31); // March 31st of current FY end year
+        startDate = new Date(fyStartYear, 3, 1);
+        endDate = new Date(fyStartYear + 1, 2, 31);
     } else if (periodSelection === TH_PERIOD_PREVIOUS_FY_CALLBACK) {
         periodText = "Previous Financial Year";
-        startDate = new Date(fyStartYear - 1, 3, 1); // April 1st of previous FY start year
-        endDate = new Date(fyStartYear, 2, 31);     // March 31st of previous FY end year
+        startDate = new Date(fyStartYear - 1, 3, 1);
+        endDate = new Date(fyStartYear, 2, 31);
     } else {
         agent.add("Invalid period selection. Please choose a valid period.");
-        // Re-prompt for period selection
-        promptForTHPeriod(agent, contactNumber); // Assuming promptForTHPeriod is defined
+        promptForTHPeriod(agent, contactNumber);
         return;
     }
-    
+
     console.log(`Filtering for ${periodText}: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
 
     transactionsToDisplay = userTransactions.filter(txn => {
-        const txnDate = new Date(txn.date); // Assuming txn.date is in 'YYYY-MM-DD' format
+        const txnDate = new Date(txn.date);
         return txnDate >= startDate && txnDate <= endDate;
     });
 
-    // Sort by date descending (newest first)
     transactionsToDisplay.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // Get latest 3 records from the filtered and sorted list
     const latestThreeTransactions = transactionsToDisplay.slice(0, 3);
 
     if (latestThreeTransactions.length > 0) {
-        let tableString = "```\n"; // Start monospaced block
-        // Header - adjust padding based on expected max lengths
+        let tableString = "```\n";
         tableString += "Date                | Fund Name                    | Amount        |\n";
         tableString += "----------------------|---------------------------------------|---------------|\n";
 
         latestThreeTransactions.forEach(txn => {
             const dateStr = (txn.date || 'N/A').padEnd(15);
-            // Ensure fund_name exists, provide fallback, truncate, and pad
             const fundStr = (txn.fund_name || 'N/A').substring(0, 18).padEnd(25);
             const amountStr = `₹${(txn.amount || 0).toLocaleString('en-IN')}`.padStart(15);
 
             tableString += `${dateStr} | ${fundStr} | ${amountStr} |\n`;
         });
-        tableString += "```"; // End monospaced block
+        tableString += "```";
 
         const message = `Latest 3 transactions for ${contactNumber} (${periodText}):\n${tableString}`;
-        // To send monospaced text, Telegram typically respects the triple backticks.
-        // No special parse_mode needed in createTelegramPayload if it just passes text.
         agent.add(message);
     } else {
         agent.add(`No transactions found for ${contactNumber} for the selected period: ${periodText}.`);
@@ -530,7 +516,6 @@ app.post('/webhook', (req, res) => {
 
     if (thPeriodContext) agent.context.delete(AWAITING_TH_PERIOD_CONTEXT);
 
-    // Ask "Do you want to invest more?"
     const investMoreMessage = "Do you want to invest more?";
     const options = [
         [{ text: "Yes", callback_data: TH_INVEST_YES_CALLBACK }],
@@ -540,34 +525,27 @@ app.post('/webhook', (req, res) => {
     agent.context.set({
         name: AWAITING_TH_INVEST_DECISION_CONTEXT,
         lifespan: 1,
-        parameters: { contact_number: contactNumber } // Pass contact if needed for invest
+        parameters: { contact_number: contactNumber }
     });
     console.log('----------------------------------------------------------------------------------');
   };
 
   const handleTHInvestDecisionIntent = agent => {
     console.log('TH_INVEST_DECISION Intent - Triggered:', agent.intent);
-    const decision = agent.query; // "th_invest_yes" or "th_invest_no"
+    const decision = agent.query;
     const decisionContext = agent.context.get(AWAITING_TH_INVEST_DECISION_CONTEXT);
     const contactNumber = decisionContext?.parameters?.contact_number || getContactNumberFromSession(agent);
 
 
     if (decision === TH_INVEST_YES_CALLBACK) {
         agent.add("Great! Let's find some funds for you.");
-        // To go to "Explore Funds" like Step-3 of Invest flow, we'd need to know which fund or start Explore Funds.
-        // For simplicity, let's just redirect to Explore Funds start.
-        // Or, if we want to go to amount entry directly, we need a fund_id.
-        // The flowchart shows "Step-3" of invest, which implies asking for amount for a *specific* fund.
-        // This part needs clarification: invest in *what*?
-        // For now, redirecting to Explore Funds.
         agent.context.delete(AWAITING_TH_INVEST_DECISION_CONTEXT);
-        return exploreFundsIntent(agent); // Or a more specific investment starting point
+        return exploreFundsIntent(agent);
     } else if (decision === TH_INVEST_NO_CALLBACK) {
         agent.add("Thank you for using our services!");
         agent.context.delete(AWAITING_TH_INVEST_DECISION_CONTEXT);
     } else {
         agent.add("Sorry, I didn't understand that. Please choose Yes or No.");
-        // Re-prompt for invest decision
         const investMoreMessage = "Do you want to invest more?";
         const options = [
             [{ text: "Yes", callback_data: TH_INVEST_YES_CALLBACK }],
@@ -578,11 +556,9 @@ app.post('/webhook', (req, res) => {
     }
   };
 
-  // INTENT MAP
 
   agent.handleRequest(createIntentMap());
 
-  // HELPER FUNCTIONS
 
   function recordTransaction( transactionData ) {
     try {
@@ -600,9 +576,9 @@ app.post('/webhook', (req, res) => {
         fund_name: transactionData.fund_name,
         fund_id: transactionData.fund_id
       };
-  
+
       let userRecord = records.find(user => user.mobile === userMobile);
-  
+
       if (userRecord) {
         if (!Array.isArray(userRecord.transactions)) {
             userRecord.transactions = [];
@@ -616,7 +592,7 @@ app.post('/webhook', (req, res) => {
         });
         console.log(`New user record created and transaction added for: ${userMobile}`);
       }
-  
+
       fs.writeFileSync(transactionFilePath, JSON.stringify(records, null, 2), 'utf8');
       console.log('User records data updated successfully.');
       return true;
@@ -660,7 +636,6 @@ app.post('/webhook', (req, res) => {
   function getContactNumberFromSession( agent ) {
     const userSession = agent.context.get(USER_SESSION_CONTEXT);
     if (userSession && userSession.parameters && userSession.parameters.contact_number) {
-      // Basic validation if needed, assuming already validated when stored
       const contact = String(userSession.parameters.contact_number).replace(/\D/g, '');
       if (contact.length === CONTACT_NUMBER_LENGTH) {
         return contact;
@@ -719,7 +694,6 @@ app.post('/webhook', (req, res) => {
     const options = [
       [{ text: "Current Financial Year", callback_data: TH_PERIOD_CURRENT_FY_CALLBACK }],
       [{ text: "Previous Financial Year", callback_data: TH_PERIOD_PREVIOUS_FY_CALLBACK }]
-      // Option for custom date range can be added later
     ];
     agent.add(createTelegramPayload(message, options));agent.context.set({
       name: AWAITING_TH_PERIOD_CONTEXT,
@@ -738,7 +712,7 @@ app.post('/webhook', (req, res) => {
     intentMap.set('Show Fund Details', showFundDetailsIntent);
     intentMap.set('Handle Investment', handleInvestmentIntent);
     intentMap.set('Capture Investment Amount', captureInvestmentAmountIntent);
-    
+
     intentMap.set('Capture Contact Number', captureContactNumberIntent);
 
     intentMap.set('Invoke Portfolio Valuation', invokePortfolioValuationIntent);
